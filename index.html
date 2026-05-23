@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form Coach v2 — AI Prototype</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;gap:14px}
+.hdr{width:100%;max-width:700px;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.3px}
+.sub{font-size:11px;color:#555;margin-top:2px}
+.tabs{display:flex;gap:8px;width:100%;max-width:700px;overflow-x:auto;padding-bottom:2px}
+.tab{padding:6px 18px;border-radius:999px;border:1px solid #2a2a2a;background:transparent;color:#666;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s}
+.tab:hover{border-color:#444;color:#aaa}
+.tab.on{background:#fff;color:#000;border-color:#fff}
+.cam{position:relative;width:100%;max-width:700px;border-radius:16px;overflow:hidden;background:#111;aspect-ratio:4/3}
+canvas{display:block;width:100%;height:100%}
+.ov-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;gap:8px}
+.ov-bot{position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.badge{padding:5px 14px;border-radius:999px;font-size:12px;font-weight:600}
+.badge.g{background:rgba(34,197,129,.95);color:#fff}
+.badge.r{background:rgba(220,80,50,.95);color:#fff}
+.badge.n{background:rgba(0,0,0,.7);color:#888}
+.badge.w{background:rgba(180,130,0,.9);color:#fff}
+.pill{background:rgba(0,0,0,.75);border-radius:999px;padding:4px 12px;font-size:11px;color:#ccc;font-weight:500}
+.simtag{background:rgba(90,80,200,.9);border-radius:999px;padding:5px 12px;font-size:11px;color:#c8c0ff;display:none}
+.ls{position:absolute;inset:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.spin{width:36px;height:36px;border-radius:50%;border:2px solid #2a2a2a;border-top-color:#555;animation:spin .9s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{font-size:13px;color:#666;text-align:center;padding:0 24px;line-height:1.5}
+.ls2{font-size:11px;color:#3a3a3a}
+.pbar{width:180px;height:2px;background:#1e1e1e;border-radius:999px;overflow:hidden;display:none}
+.pfill{height:100%;background:#444;border-radius:999px;transition:width .35s}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:700px}
+.sc{background:#161616;border-radius:12px;padding:13px 15px;border:1px solid #1f1f1f}
+.sl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.sv{font-size:24px;font-weight:600;color:#e8e8e8;line-height:1}
+.ss{font-size:11px;color:#444;margin-top:3px}
+.rom-wrap{width:100%;max-width:700px;background:#161616;border-radius:12px;padding:12px 16px;border:1px solid #1f1f1f;display:flex;align-items:center;gap:14px}
+.rom-lbl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px;min-width:72px}
+.rom-track{flex:1;height:5px;background:#222;border-radius:999px;overflow:hidden}
+.rom-fill{height:100%;border-radius:999px;transition:width .1s,background .2s}
+.rom-pct{font-size:12px;font-weight:600;color:#aaa;min-width:38px;text-align:right}
+.fbc{width:100%;max-width:700px;background:#161616;border-radius:14px;padding:14px 17px;border:1px solid #1f1f1f;min-height:72px}
+.fl{font-size:10px;color:#444;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ft{font-size:14px;color:#ccc;line-height:1.55}
+.cues{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.cue{font-size:12px;color:#d07050;padding:3px 0 3px 8px;border-left:2px solid #d07050}
+.sbtn{width:100%;max-width:700px;padding:14px;border-radius:14px;border:none;background:#fff;color:#000;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.sbtn:hover{opacity:.88}
+.sbtn:disabled{opacity:.3;cursor:default}
+.rflash{position:absolute;inset:0;background:rgba(34,197,129,.12);border:3px solid rgba(34,197,129,.5);border-radius:16px;pointer-events:none;opacity:0;transition:opacity .08s}
+.rflash.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div><h1>Form coach</h1><div class="sub">AI pose detection · v2</div></div>
+  <div style="font-size:11px;color:#2a2a2a">MoveNet · TF.js</div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-ex="pushup" onclick="selEx(this)">Push-up</button>
+  <button class="tab" data-ex="squat"  onclick="selEx(this)">Squat</button>
+  <button class="tab" data-ex="lunge"  onclick="selEx(this)">Lunge</button>
+  <button class="tab" data-ex="plank"  onclick="selEx(this)">Plank</button>
+</div>
+
+<div class="cam" id="camWrap">
+  <canvas id="cvs"></canvas>
+  <div class="rflash" id="rflash"></div>
+  <div class="ov-top">
+    <div class="badge n" id="fbadge">Ready</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <div class="simtag" id="simtag">preview mode</div>
+      <div class="badge n" id="phaseBadge" style="display:none"></div>
+    </div>
+  </div>
+  <div class="ov-bot" id="pills"></div>
+  <div class="ls" id="ls">
+    <div class="spin" id="spin"></div>
+    <div class="lt" id="lt">Tap <strong style="color:#888">Start session</strong> to begin</div>
+    <div class="ls2" id="ls2">Camera + MoveNet pose detection</div>
+    <div class="pbar" id="pb"><div class="pfill" id="pf" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="rom-wrap">
+  <div class="rom-lbl" id="romLbl">Depth</div>
+  <div class="rom-track"><div class="rom-fill" id="romFill" style="width:0%;background:#22CD8C"></div></div>
+  <div class="rom-pct" id="romPct">—</div>
+</div>
+
+<div class="stats">
+  <div class="sc"><div class="sl">Reps</div><div class="sv" id="sR">0</div><div class="ss" id="sC">0 clean</div></div>
+  <div class="sc"><div class="sl">Phase</div><div class="sv" id="sPh" style="font-size:17px">—</div><div class="ss" id="sFm">—</div></div>
+  <div class="sc"><div class="sl" id="angLbl">Joint angle</div><div class="sv" id="sA">—°</div><div class="ss" id="angHint">—</div></div>
+</div>
+
+<div class="fbc"><div class="fl">AI feedback</div><div class="ft" id="ft">Select an exercise and tap Start.</div><div class="cues" id="cues"></div></div>
+
+<button class="sbtn" id="btn" onclick="startSession()">Start session</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+<script>
+// ── Globals ─────────────────────────────────────────────────────────
+const cvs = document.getElementById('cvs');
+const ctx  = cvs.getContext('2d');
+cvs.width  = 640; cvs.height = 480;
+const $ = id => document.getElementById(id);
+
+let ex = 'pushup', det = null, vid = null;
+let running = false, useSim = false;
+let reps = 0, cleanReps = 0;
+let raf = null, flashTO = null, lastFB = '';
+let refT = 0; // reference animation clock (always ticking)
+
+// ── Per-rep hysteresis state machine ─────────────────────────────────
+// Reps CANNOT be predetermined — a phase change only registers after
+// the angle stays in the target zone for HOLD consecutive frames.
+let H = { phase:'up', hold:0, ff:0, gf:0 };
+
+function resetH() {
+  H = { phase:'up', hold:0, ff:0, gf:0 };
+  reps = 0; cleanReps = 0; lastFB = '';
+  $('sR').textContent='0'; $('sC').textContent='0 clean';
+  $('sPh').textContent='—'; $('sFm').textContent='—'; $('sA').textContent='—°';
+  $('pills').innerHTML=''; $('cues').innerHTML='';
+  $('romFill').style.width='0%'; $('romPct').textContent='—';
+  $('fbadge').className='badge n'; $('fbadge').textContent='Ready';
+  $('phaseBadge').style.display='none';
+}
+
+// Transition from 'up' to 'down' requires angle < downT for HOLD frames.
+// Transition from 'down' to 'up' requires angle > upT   for HOLD frames.
+// Noise, jitter or partial reps do NOT count.
+function tickRSM(angle, downT, upT, HOLD) {
+  if (angle === null) { H.hold = Math.max(0, H.hold-3); return; }
+  const goDown = H.phase==='up'   && angle < downT;
+  const goUp   = H.phase==='down' && angle > upT;
+  if (goDown || goUp) {
+    H.hold++;
+    if (H.hold >= HOLD) {
+      if (goUp) {
+        reps++;
+        const clean = H.ff > 10 && H.gf / H.ff > 0.55;
+        if (clean) cleanReps++;
+        H.ff = 0; H.gf = 0;
+        triggerFlash();
+      }
+      H.phase = goDown ? 'down' : 'up';
+      H.hold  = 0;
+    }
+  } else {
+    H.hold = Math.max(0, H.hold-2); // decay when angle drifts back
+  }
+  H.ff++;
+}
+
+// ── Exercise definitions ─────────────────────────────────────────────
+const EX = {
+  pushup: { name:'Push-up', jLbl:'Elbow angle', hnt:'<80° at bottom · arms straight at top', downT:80, upT:152, HOLD:10, tgtD:70, tgtU:168 },
+  squat:  { name:'Squat',   jLbl:'Knee angle',  hnt:'<110° at bottom · legs straight at top', downT:110, upT:156, HOLD:8,  tgtD:90, tgtU:170 },
+  lunge:  { name:'Lunge',   jLbl:'Front knee',  hnt:'~90° at bottom · straight at top', downT:108, upT:155, HOLD:8,  tgtD:88, tgtU:165 },
+  plank:  { name:'Plank',   jLbl:'Hip offset',  hnt:'0 = perfect alignment', downT:null, upT:null, HOLD:0, tgtD:0, tgtU:999 }
+};
+
+// ── Reference skeleton data ──────────────────────────────────────────
+// Keypoints in a 120×140 unit space. Two poses per exercise (top / bottom).
+// Indices match MoveNet order: nose(0) eyes(1-2) ears(3-4)
+// L-sho(5) R-sho(6) L-elb(7) R-elb(8) L-wri(9) R-wri(10)
+// L-hip(11) R-hip(12) L-kne(13) R-kne(14) L-ank(15) R-ank(16)
+const RPOSE = {
+  pushup:{
+    A:[[60,8],[52,4],[68,4],[46,6],[74,6],[26,26],[94,26],[6,40],[114,40],[2,54],[118,54],[36,62],[84,62],[36,86],[84,86],[36,110],[84,110]],
+    B:[[60,15],[52,11],[68,11],[46,13],[74,13],[28,30],[92,30],[16,50],[104,50],[10,64],[110,64],[38,68],[82,68],[38,90],[82,90],[38,112],[82,112]],
+    lA:'~165°', lB:'~75°'
+  },
+  squat:{
+    A:[[60,8],[52,4],[68,4],[46,6],[74,6],[24,28],[96,28],[14,50],[106,50],[10,66],[110,66],[34,74],[86,74],[32,98],[88,98],[30,122],[90,122]],
+    B:[[60,8],[52,4],[68,4],[46,6],[74,6],[24,28],[96,28],[14,50],[106,50],[10,66],[110,66],[30,80],[90,80],[14,108],[106,108],[24,128],[96,128]],
+    lA:'~170°', lB:'~95°'
+  },
+  lunge:{
+    A:[[60,8],[52,4],[68,4],[46,6],[74,6],[26,28],[94,28],[16,50],[104,50],[12,66],[108,66],[36,74],[84,74],[36,98],[84,98],[36,122],[84,122]],
+    B:[[60,8],[52,4],[68,4],[46,6],[74,6],[26,28],[94,28],[16,50],[104,50],[12,66],[108,66],[38,80],[66,90],[38,106],[58,116],[36,128],[56,136]],
+    lA:'~165°', lB:'~90° front'
+  },
+  plank:{
+    A:[[60,20],[52,16],[68,16],[46,18],[74,18],[26,32],[94,32],[10,48],[110,48],[4,60],[116,60],[34,64],[86,64],[34,86],[86,86],[34,108],[86,108]],
+    B:[[60,20],[52,16],[68,16],[46,18],[74,18],[26,32],[94,32],[10,48],[110,48],[4,60],[116,60],[34,72],[86,72],[34,90],[86,90],[34,108],[86,108]],
+    lA:'aligned', lB:'avoid sag'
+  }
+};
+
+const REDGES = [[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+
+function drawRef(phase01, bx, by, bw, bh) {
+  const p = RPOSE[ex]; if (!p) return;
+  const t = Math.max(0,Math.min(1,phase01));
+  const kps = p.A.map((a,i) => { const b=p.B[i]; return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; });
+  const sx = x => bx + (x/120)*bw, sy = y => by + (y/140)*bh;
+
+  // backdrop
+  ctx.fillStyle='rgba(0,0,0,0.75)';
+  const pad=6;
+  ctx.beginPath(); ctx.roundRect(bx-pad, by-pad, bw+pad*2, bh+pad*2+28); ctx.fill();
+
+  // header
+  ctx.fillStyle='rgba(100,120,220,0.9)'; ctx.font='bold 9px -apple-system,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('FOLLOW', bx+bw/2, by-pad+10);
+
+  // skeleton
+  ctx.lineWidth=1.8; ctx.lineCap='round';
+  REDGES.forEach(([i,j]) => {
+    const a=kps[i], b=kps[j];
+    ctx.strokeStyle='rgba(120,150,255,0.8)';
+    ctx.beginPath(); ctx.moveTo(sx(a[0]),sy(a[1])); ctx.lineTo(sx(b[0]),sy(b[1])); ctx.stroke();
+  });
+  kps.forEach((k,i) => {
+    const key=[7,8,9,10,13,14,15,16].includes(i);
+    ctx.beginPath(); ctx.arc(sx(k[0]),sy(k[1]),key?3.5:2.5,0,Math.PI*2);
+    ctx.fillStyle=key?'#8090FF':'#999'; ctx.fill();
+  });
+
+  // angle label
+  const lbl = t > 0.5 ? p.lB : p.lA;
+  ctx.fillStyle='rgba(160,160,220,0.9)'; ctx.font='9px -apple-system,sans-serif';
+  ctx.fillText(lbl, bx+bw/2, by+bh+pad+14);
+  ctx.textAlign='left';
+}
+
+// ── Skeleton drawing (user) ──────────────────────────────────────────
+const SKELEDGES = [[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+const ARMS = new Set([5,6,7,8,9,10]);
+const LEGS = new Set([11,12,13,14,15,16]);
+
+function drawSkel(kps, good) {
+  ctx.lineWidth=2.8; ctx.lineCap='round';
+  SKELEDGES.forEach(([i,j]) => {
+    const a=kps[i], b=kps[j];
+    if (a?.score>.28 && b?.score>.28) {
+      ctx.strokeStyle = good ? 'rgba(34,205,140,.9)' : 'rgba(255,255,255,.68)';
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+  });
+  kps.forEach((k,i) => {
+    if (!k || k.score<.28) return;
+    const arm=ARMS.has(i), leg=LEGS.has(i), r=(arm||leg)?6:4;
+    ctx.beginPath(); ctx.arc(k.x,k.y,r,0,Math.PI*2);
+    ctx.fillStyle = arm ? (good?'#22CD8C':'#F07050') : leg ? (good?'#22CD8C':'#5080F0') : (good?'#22CD8C':'#fff');
+    ctx.fill();
+    if (arm||leg) { ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.lineWidth=1.5; ctx.stroke(); }
+  });
+}
+
+function drawArc(b, a, c, col, lbl) {
+  if (!a||!b||!c || a.score<.28||b.score<.28||c.score<.28) return;
+  const r=24;
+  const a1=Math.atan2(a.y-b.y,a.x-b.x), a2=Math.atan2(c.y-b.y,c.x-b.x);
+  let s=a1, e=a2;
+  if (Math.abs(e-s)>Math.PI) { s<0?s+=Math.PI*2:e+=Math.PI*2; }
+  ctx.beginPath(); ctx.arc(b.x,b.y,r,Math.min(s,e),Math.max(s,e));
+  ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.stroke();
+  const mid=(a1+a2)/2;
+  ctx.fillStyle=col; ctx.font='bold 11px -apple-system,sans-serif'; ctx.textAlign='center';
+  ctx.fillText(lbl, b.x+(r+15)*Math.cos(mid), b.y+(r+15)*Math.sin(mid));
+  ctx.textAlign='left';
+}
+
+// Phase-confirmation progress bar (drawn on canvas, bottom-left)
+function drawHoldBar(cfg) {
+  if (H.hold<=0 || !cfg.HOLD) return;
+  const bx=12, by=cvs.height-26, bw=150, bh=4;
+  const pct = H.hold/cfg.HOLD;
+  const col = H.phase==='up' ? '#F07050' : '#22CD8C'; // red=going down, green=going up
+  ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(bx-2,by-16,bw+4,bh+20);
+  ctx.fillStyle='#333'; ctx.fillRect(bx,by,bw,bh);
+  ctx.fillStyle=col; ctx.fillRect(bx,by,bw*pct,bh);
+  ctx.fillStyle='rgba(200,200,200,.7)'; ctx.font='10px -apple-system,sans-serif';
+  const dir = H.phase==='up' ? 'Detecting bottom...' : 'Detecting top...';
+  ctx.fillText(dir, bx, by-4);
+}
+
+// ROM bar
+function setROM(angle, cfg) {
+  if (!cfg.downT || angle===null) { $('romFill').style.width='0%'; $('romPct').textContent='—'; return; }
+  const span = cfg.upT - cfg.tgtD;
+  const pct = Math.round(Math.min(100, Math.max(0, (cfg.upT - angle) / span * 100)));
+  $('romFill').style.width = pct+'%';
+  $('romFill').style.background = pct>75?'#22CD8C':pct>45?'#CC9020':'#E04030';
+  $('romPct').textContent = pct+'%';
+  $('romLbl').textContent = H.phase==='down' ? 'Depth' : 'Range';
+}
+
+// ── Angle helper ─────────────────────────────────────────────────────
+function ang(a, b, c) {
+  if (!a||!b||!c||a.score<.25||b.score<.25||c.score<.25) return null;
+  const r = Math.atan2(c.y-b.y,c.x-b.x) - Math.atan2(a.y-b.y,a.x-b.x);
+  const d = Math.abs(r*180/Math.PI); return d>180?360-d:d;
+}
+
+// ── Analyzers ────────────────────────────────────────────────────────
+function doPushup(kps) {
+  const cfg=EX.pushup;
+  const lA=ang(kps[5],kps[7],kps[9]), rA=ang(kps[6],kps[8],kps[10]);
+  if (lA===null&&rA===null) return {av:null,good:false,fb:'Get into push-up position — shoulders and arms need to be visible.',iss:[]};
+  const av = lA!==null&&rA!==null?(lA+rA)/2:lA??rA;
+  const bal = lA!==null&&rA!==null?Math.abs(lA-rA)<32:true;
+  tickRSM(av,cfg.downT,cfg.upT,cfg.HOLD);
+  setROM(av,cfg); drawHoldBar(cfg);
+  const iss=[];
+  if(!bal) iss.push('Arms uneven — match depth on both sides');
+  if(H.phase==='down'&&av>88) iss.push('Go lower — chest should nearly touch the floor');
+  if(H.phase==='up'&&av<150) iss.push('Fully extend arms at the top');
+  const good=iss.length===0&&(H.phase==='down'?av<85:av>155); if(good)H.gf++;
+  const ac=good?'#22CD8C':'#F07050';
+  if(lA!==null&&kps[7]?.score>.28) drawArc(kps[7],kps[5],kps[9],ac,Math.round(lA)+'°');
+  if(rA!==null&&kps[8]?.score>.28) drawArc(kps[8],kps[6],kps[10],ac,Math.round(rA)+'°');
+  let fb=H.phase==='down'?(av<80?'Great depth! Push up explosively.':'Lower chest — get elbows below 80°.'):(av>155?`Rep ${reps} done. Controlled descent.`:'Plank position: core tight, shoulder-width grip.');
+  if(!bal) fb+=' Sync both arms.';
+  return {lA:lA?Math.round(lA):null,rA:rA?Math.round(rA):null,av:Math.round(av),good,iss,fb};
+}
+
+function doSquat(kps) {
+  const cfg=EX.squat;
+  const lA=ang(kps[11],kps[13],kps[15]), rA=ang(kps[12],kps[14],kps[16]);
+  if (lA===null&&rA===null) return {av:null,good:false,fb:'Step back so full lower body is in frame.',iss:[]};
+  const av = lA!==null&&rA!==null?(lA+rA)/2:lA??rA;
+  const bal = lA!==null&&rA!==null?Math.abs(lA-rA)<28:true;
+  tickRSM(av,cfg.downT,cfg.upT,cfg.HOLD);
+  setROM(av,cfg); drawHoldBar(cfg);
+  const iss=[];
+  if(!bal) iss.push('Knees uneven — keep symmetrical, tracking over toes');
+  if(H.phase==='down'&&av>115) iss.push('Descend deeper — thighs parallel to floor');
+  const good=iss.length===0&&(H.phase==='down'?av<112:av>158); if(good)H.gf++;
+  const ac=good?'#22CD8C':'#5080F0';
+  if(lA!==null&&kps[13]?.score>.28) drawArc(kps[13],kps[11],kps[15],ac,Math.round(lA)+'°');
+  if(rA!==null&&kps[14]?.score>.28) drawArc(kps[14],kps[12],kps[16],ac,Math.round(rA)+'°');
+  const fb=H.phase==='down'?(av<112?'Excellent depth! Drive through heels.':'Go deeper — thighs should be parallel.'):'Stand tall. Feet shoulder-width, toes slightly out.';
+  return {lA:lA?Math.round(lA):null,rA:rA?Math.round(rA):null,av:Math.round(av),good,iss,fb};
+}
+
+function doLunge(kps) {
+  const cfg=EX.lunge;
+  const lA=ang(kps[11],kps[13],kps[15]), rA=ang(kps[12],kps[14],kps[16]);
+  if (lA===null&&rA===null) return {av:null,good:false,fb:'Step back — full lower body needed in frame for lunge detection.',iss:[]};
+  // Front leg = more bent (smaller angle). Require meaningful difference to avoid false detection.
+  let frontA, frontKp, frontH, frontAn, side;
+  if (lA!==null&&rA!==null) {
+    const diff = Math.abs(lA-rA);
+    if (lA<rA) { frontA=lA;frontKp=kps[13];frontH=kps[11];frontAn=kps[15];side='L'; }
+    else        { frontA=rA;frontKp=kps[14];frontH=kps[12];frontAn=kps[16];side='R'; }
+    // If legs are basically the same angle, could be standing — use the smaller one
+  } else {
+    frontA=lA??rA; frontKp=lA!==null?kps[13]:kps[14]; frontH=lA!==null?kps[11]:kps[12];
+    frontAn=lA!==null?kps[15]:kps[16]; side='?';
+  }
+  tickRSM(frontA,cfg.downT,cfg.upT,cfg.HOLD);
+  setROM(frontA,cfg); drawHoldBar(cfg);
+  const iss=[];
+  if(H.phase==='down'&&frontA>112) iss.push('Step deeper — front knee needs to reach 90°');
+  const good=iss.length===0&&(H.phase==='down'?frontA<110:frontA>157); if(good)H.gf++;
+  const ac=good?'#22CD8C':'#9060E0';
+  if(frontKp?.score>.28) drawArc(frontKp,frontH,frontAn,ac,Math.round(frontA)+'°');
+  const fb=H.phase==='down'?(frontA<110?'Good lunge depth! Push back through your front heel.':'Step further — get front knee to 90°.'):`Step ${side==='?'?'one foot':'('+side+')'} forward into the lunge.`;
+  return {lA:lA?Math.round(lA):null,rA:rA?Math.round(rA):null,av:Math.round(frontA),good,iss,fb};
+}
+
+function doPlank(kps) {
+  const ls=kps[5],rs=kps[6],lh=kps[11],rh=kps[12];
+  const ok=ls?.score>.25&&rs?.score>.25&&lh?.score>.25&&rh?.score>.25;
+  if (!ok) return {av:null,good:false,fb:'Face camera side-on for plank — full body must be visible.',iss:[]};
+  const shY=(ls.y+rs.y)/2,hY=(lh.y+rh.y)/2,dev=Math.abs(shY-hY);
+  const good=dev<26; if(good)H.gf++; H.ff++;
+  $('romFill').style.width=Math.max(0,100-dev*2)+'%';
+  $('romFill').style.background=good?'#22CD8C':'#E04030';
+  $('romPct').textContent=Math.round(dev)+'px';
+  const iss=good?[]:[hY>shY?'Hips sagging — squeeze glutes and lift':'Hips piked — lower them level with shoulders'];
+  return {lA:null,rA:null,av:Math.round(dev),good,iss,fb:good?'Perfect plank! Straight line, breathe steadily.':'Adjust hips — straight line from head to heels.'};
+}
+
+// ── UI update ────────────────────────────────────────────────────────
+function updUI(r) {
+  if (!r) return;
+  $('fbadge').className='badge '+(r.good?'g':r.av!=null?'r':'n');
+  $('fbadge').textContent=r.good?'Good form':r.av!=null?'Adjust form':'Get in frame';
+  const pb=$('phaseBadge'); pb.style.display='block';
+  pb.className='badge '+(H.phase==='down'?'r':'n');
+  pb.textContent=(H.phase==='down'?'Bottom':'Top')+(H.hold>0?` (${H.hold})` : '');
+  let p='';
+  if(r.lA!=null)p+=`<div class="pill">L: ${r.lA}°</div>`;
+  if(r.rA!=null)p+=`<div class="pill">R: ${r.rA}°</div>`;
+  if(r.av!=null&&r.lA!=null&&r.rA!=null)p+=`<div class="pill">avg: ${r.av}°</div>`;
+  $('pills').innerHTML=p;
+  $('sR').textContent=reps; $('sC').textContent=cleanReps+' clean';
+  $('sPh').textContent=H.phase==='down'?'Bottom':'Top'; $('sFm').textContent=r.good?'Good':'Adjust';
+  $('sA').textContent=r.av!=null?r.av+'°':'—°';
+  $('angLbl').textContent=EX[ex].jLbl; $('angHint').textContent=EX[ex].hnt;
+  if(r.fb!==lastFB){$('ft').textContent=r.fb;lastFB=r.fb;}
+  $('cues').innerHTML=(r.iss||[]).map(c=>`<div class="cue">${c}</div>`).join('');
+}
+
+// ── Controls ─────────────────────────────────────────────────────────
+function selEx(btn) {
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); ex=btn.dataset.ex; resetH();
+  $('ft').textContent=EX[ex].hnt||'Get into position.';
+}
+
+function triggerFlash() {
+  const el=$('rflash'); el.classList.add('on');
+  if(flashTO) clearTimeout(flashTO);
+  flashTO=setTimeout(()=>el.classList.remove('on'),500);
+}
+
+async function startSession() {
+  $('btn').disabled=true; $('btn').textContent='Loading...';
+  $('spin').style.display='block'; $('pb').style.display='block';
+  setL('Requesting camera...',''); pf(10);
+  try {
+    vid=document.createElement('video');
+    vid.autoplay=true; vid.muted=true; vid.playsInline=true;
+    const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+    vid.srcObject=s;
+    await new Promise(r=>{vid.onloadedmetadata=()=>{vid.play();r();};});
+    cvs.width=vid.videoWidth||640; cvs.height=vid.videoHeight||480;
+    setL('Loading MoveNet model...','SinglePose Lightning · ~3MB'); pf(50);
+    try {
+      if(typeof poseDetection!=='undefined'&&typeof tf!=='undefined'){
+        det=await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet,{modelType:poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING});
+        useSim=false; pf(92);
+        $('ft').textContent='Camera ready. Get into position to begin tracking.';
+      } else throw 0;
+    } catch(e) {
+      useSim=true; $('simtag').style.display='block';
+      $('ft').textContent='Model failed to load — camera active, reference animation shown.';
+    }
+    pf(100); await new Promise(r=>setTimeout(r,300));
+  } catch(e) {
+    vid=null; useSim=true; cvs.width=640; cvs.height=480;
+    $('simtag').style.display='block'; pf(100);
+    $('ft').textContent='No camera detected — showing animated reference. Rep tracking requires camera.';
+    await new Promise(r=>setTimeout(r,300));
+  }
+  $('ls').style.display='none';
+  $('btn').textContent='Stop session'; $('btn').disabled=false; $('btn').onclick=stopSession;
+  running=true; loop();
+}
+
+function stopSession() {
+  running=false; if(raf)cancelAnimationFrame(raf);
+  if(vid?.srcObject) vid.srcObject.getTracks().forEach(t=>t.stop());
+  $('ls').style.display='flex'; $('spin').style.display='none'; $('pb').style.display='none';
+  setL('Session ended.','Tap Start to go again');
+  $('btn').textContent='Start session'; $('btn').onclick=startSession; $('btn').disabled=false;
+  $('fbadge').className='badge n'; $('fbadge').textContent='Done'; $('phaseBadge').style.display='none';
+}
+
+function setL(a,b){$('lt').textContent=a;$('ls2').textContent=b;}
+function pf(p){$('pf').style.width=p+'%';}
+
+// ── Main loop ────────────────────────────────────────────────────────
+async function loop() {
+  if(!running) return;
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  // Reference animation clock — independent of rep counting
+  refT += 0.007;
+  const refPhase = (Math.sin(refT)+1)/2; // 0=top, 1=bottom, smooth sine
+
+  let kps=null;
+
+  if(useSim) {
+    // PREVIEW MODE: show reference only, no rep counting
+    ctx.fillStyle='#131313'; ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=1;
+    for(let x=0;x<cvs.width;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cvs.height);ctx.stroke();}
+    for(let y=0;y<cvs.height;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cvs.width,y);ctx.stroke();}
+    ctx.fillStyle='#252525'; ctx.font='13px -apple-system,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Enable your camera to start tracking reps', cvs.width/2, cvs.height/2-8);
+    ctx.fillStyle='#1e1e1e'; ctx.font='11px -apple-system,sans-serif';
+    ctx.fillText('Rep counting only works with live camera + pose detection', cvs.width/2, cvs.height/2+12);
+    ctx.textAlign='left';
+    // kps stays null — no analysis, no rep counting
+  } else if(vid && det) {
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid,-cvs.width,0,cvs.width,cvs.height); ctx.restore();
+    try {
+      const poses=await det.estimatePoses(vid);
+      if(poses.length>0) kps=poses[0].keypoints.map(k=>({...k,x:cvs.width-k.x}));
+    } catch(e){}
+  } else if(vid) {
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid,-cvs.width,0,cvs.width,cvs.height); ctx.restore();
+  }
+
+  // Reference box — always shown (top-right corner)
+  const rbW=118, rbH=138, rbX=cvs.width-rbW-16, rbY=16;
+  drawRef(refPhase, rbX, rbY, rbW, rbH);
+
+  // Tracking — only with real keypoints (camera required)
+  if(kps) {
+    let res=null, good=false;
+    if(ex==='pushup') res=doPushup(kps);
+    else if(ex==='squat') res=doSquat(kps);
+    else if(ex==='lunge') res=doLunge(kps);
+    else if(ex==='plank') res=doPlank(kps);
+    good=res?.good||false;
+    drawSkel(kps,good);
+    updUI(res);
+  }
+
+  raf=requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
